@@ -1,42 +1,59 @@
 const Document = require('../models/Document');
 
+// @desc    Upload a new legal document
+// @route   POST /api/documents
 const uploadDocument = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+        if (!req.file) {
+            return res.status(400).json({ message: 'No file uploaded' });
+        }
 
         const doc = await Document.create({
             fileName: req.file.originalname,
             filePath: req.file.path,
             uploadedBy: req.user.id
         });
-        res.status(201).json(doc);
+
+        return res.status(201).json(doc);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: error.message });
     }
 };
 
+// @desc    Sign a document (Safeguarded against undefined body crashes)
+// @route   PUT /api/documents/:id/sign
 const signDocument = async (req, res) => {
-    const { signatureImage } = req.body; // Expecting base64 string of signature
     try {
-        const doc = await Document.findById(req.params.id);
-        if (!doc) return res.status(404).json({ message: 'Document not found' });
+        // Safe check: Agar req.body pure tarike se undefined ho toh khali object fallback use karein
+        const { signatureImage } = req.body || {};
 
-        doc.signatureImage = signatureImage;
+        const doc = await Document.findById(req.params.id);
+        if (!doc) {
+            return res.status(404).json({ message: 'Document not found' });
+        }
+
+        // Agar Base64 signature image aayi hai toh save karein, nahi toh skip karein
+        if (signatureImage) {
+            doc.signatureImage = signatureImage;
+        }
+
         doc.status = 'Signed';
         await doc.save();
 
-        res.json({ message: 'Document signed successfully!', doc });
+        return res.json({ message: 'Document signed successfully!', doc });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: error.message });
     }
 };
 
+// @desc    Get all documents associated with the logged-in user
+// @route   GET /api/documents
 const getMyDocuments = async (req, res) => {
     try {
         const docs = await Document.find({ uploadedBy: req.user.id });
-        res.json(docs);
+        return res.json(docs);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: error.message });
     }
 };
 

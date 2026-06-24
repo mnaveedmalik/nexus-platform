@@ -12,10 +12,12 @@ const registerUser = async (req, res) => {
     const { name, email, password, role } = req.body;
     try {
         const userExists = await User.findOne({ email });
-        if (userExists) return res.status(400).json({ message: 'User already exists' });
+        if (userExists) {
+            return res.status(400).json({ message: 'User already exists' });
+        }
 
         const user = await User.create({ name, email, password, role });
-        res.status(201).json({
+        return res.status(201).json({
             _id: user._id,
             name: user.name,
             email: user.email,
@@ -23,7 +25,7 @@ const registerUser = async (req, res) => {
             token: generateToken(user._id)
         });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: error.message });
     }
 };
 
@@ -34,7 +36,7 @@ const loginUser = async (req, res) => {
     try {
         const user = await User.findOne({ email });
         if (user && (await user.matchPassword(password))) {
-            res.json({
+            return res.json({
                 _id: user._id,
                 name: user.name,
                 email: user.email,
@@ -42,25 +44,30 @@ const loginUser = async (req, res) => {
                 token: generateToken(user._id)
             });
         } else {
-            res.status(401).json({ message: 'Invalid email or password' });
+            return res.status(401).json({ message: 'Invalid email or password' });
         }
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: error.message });
     }
 };
 
-// @desc    Get & Update Profile
-// @route   GET & PUT /api/auth/profile
+// @desc    Get Profile
+// @route   GET /api/auth/profile
 const getUserProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user.id).select('-password');
-        if (user) res.json(user);
-        else res.status(404).json({ message: 'User not found' });
+        if (user) {
+            return res.json(user);
+        } else {
+            return res.status(404).json({ message: 'User not found' });
+        }
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: error.message });
     }
 };
 
+// @desc    Update Profile
+// @route   PUT /api/auth/profile
 const updateUserProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
@@ -71,7 +78,7 @@ const updateUserProfile = async (req, res) => {
             user.preferences = req.body.preferences || user.preferences;
 
             const updatedUser = await user.save();
-            res.json({
+            return res.json({
                 _id: updatedUser._id,
                 name: updatedUser.name,
                 email: updatedUser.email,
@@ -81,10 +88,10 @@ const updateUserProfile = async (req, res) => {
                 preferences: updatedUser.preferences
             });
         } else {
-            res.status(404).json({ message: 'User not found' });
+            return res.status(404).json({ message: 'User not found' });
         }
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: error.message });
     }
 };
 

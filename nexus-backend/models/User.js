@@ -6,19 +6,19 @@ const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     role: { type: String, enum: ['Investor', 'Entrepreneur'], required: true },
-    // Extended Profile Info
     bio: { type: String, default: '' },
-    history: { type: String, default: '' }, // Startup history ya Investment history
+    history: { type: String, default: '' },
     preferences: { type: String, default: '' },
     createdAt: { type: Date, default: Date.now }
 });
 
-// Password ko save krne se pehle encrypt (hash) krne ke liye middleware
-userSchema.pre('save', async function (next) {
-    if (!this.isModified('password')) return next();
+// MODERN MONGOOSE: Pure async-await loop without 'next' parameter to prevent crashes
+userSchema.pre('save', async function () {
+    if (!this.isModified('password')) {
+        return;
+    }
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
-    next();
 });
 
 // Password match krne ke liye method

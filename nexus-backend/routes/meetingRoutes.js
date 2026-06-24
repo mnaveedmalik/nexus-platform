@@ -1,9 +1,12 @@
 const express = require('express');
 const { scheduleMeeting, getMyMeetings, updateMeetingStatus } = require('../controllers/meetingController');
 const { protect } = require('../middlewares/authMiddleware');
+
 const router = express.Router();
 
-router.route('/').post(protect, scheduleMeeting).get(protect, getMyMeetings);
-router.route('/:id').put(protect, updateMeetingStatus);
+// Chain structures ko hata kar simple explicit routes map kar diye hain
+router.post('/', protect, scheduleMeeting);
+router.get('/', protect, getMyMeetings);
+router.put('/:id', protect, updateMeetingStatus);
 
 module.exports = router;
