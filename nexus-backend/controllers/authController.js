@@ -16,7 +16,25 @@ const registerUser = async (req, res) => {
             return res.status(400).json({ message: 'User already exists' });
         }
 
-        const user = await User.create({ name, email, password, role });
+        /* 
+          Airtight Case Sanitization: Frontend se lowercase aye ya uppercase, 
+          yeh logic string ko strictly Mongoose Enum standard ('Investor' / 'Entrepreneur') 
+          mein convert karegi taake galat state ya default fallback apply na ho.
+        */
+        let validatedRole = 'Entrepreneur'; // Default fallback safely applied
+        if (role && role.toLowerCase() === 'investor') {
+            validatedRole = 'Investor';
+        } else if (role && role.toLowerCase() === 'entrepreneur') {
+            validatedRole = 'Entrepreneur';
+        }
+
+        const user = await User.create({
+            name,
+            email,
+            password,
+            role: validatedRole // Saving verified sanitized string format
+        });
+
         return res.status(201).json({
             _id: user._id,
             name: user.name,

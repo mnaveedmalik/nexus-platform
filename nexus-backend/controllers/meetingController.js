@@ -1,10 +1,29 @@
+// controllers/meetingController.js
 const Meeting = require('../models/Meeting');
+const User = require('../models/User');
 
 // @desc    Schedule a Meeting with watertight Double-Booking check
 // @route   POST /api/meetings
 const scheduleMeeting = async (req, res) => {
-    const { title, description, investorId, startTime, endTime } = req.body;
+    const { title, description, investorId, startTime, endTime, inviteeEmail } = req.body;
     try {
+        let targetInvestorId = investorId;
+
+        /* Email Resolution Pipeline: If frontend sends inviteeEmail instead of direct MongoDB Object ID,
+           we look up the exact Investor account inside the database seamlessly.
+        */
+        if (!targetInvestorId && inviteeEmail) {
+            const resolvedUser = await User.findOne({ email: inviteeEmail.trim().toLowerCase() });
+            if (!resolvedUser) {
+                return res.status(404).json({ message: 'Invitee user account not found in system directory' });
+            }
+            targetInvestorId = resolvedUser._id;
+        }
+
+        if (!targetInvestorId) {
+            return res.status(400).json({ message: 'Investor identification reference missing' });
+        }
+
         const start = new Date(startTime);
         const end = new Date(endTime);
 
@@ -17,13 +36,17 @@ const scheduleMeeting = async (req, res) => {
         }
 
         // Conflict Detection Check: 
-        // It will detect conflict if the meeting is NOT Cancelled or Rejected (captures Pending & Accepted)
         const conflict = await Meeting.findOne({
             $or: [
-                { investor: investorId, startTime: { $lt: end }, endTime: { $gt: start } },
+                { investor: targetInvestorId, startTime: { $lt: end }, endTime: { $gt: start } },
                 { entrepreneur: req.user.id, startTime: { $lt: end }, endTime: { $gt: start } }
             ],
-            status: { $nin: ['Cancelled', 'Rejected'] } // Block slots for both Pending and Accepted meetings
+            /* 🚀 CRITICAL VALIDATION FIX:
+               Adding 'Completed' into the $nin (Not In) array gate!
+               Ab database 'Cancelled', 'Rejected', aur 'Completed' teeno ko ignore karega 
+               aur naya handshake slot baghair kisi conflict crash ke book karne dega!
+            */
+            status: { $nin: ['Cancelled', 'Rejected', 'Completed'] }
         });
 
         if (conflict) {
@@ -33,12 +56,12 @@ const scheduleMeeting = async (req, res) => {
         // If no conflict, create the unique meeting record
         const meeting = await Meeting.create({
             title,
-            description,
+            description: description || 'No description provided',
             entrepreneur: req.user.id,
-            investor: investorId,
+            investor: targetInvestorId,
             startTime: start,
             endTime: end,
-            roomID: `room_${Math.random().toString(36).substring(2, 9)}` // Dynamic unique room ID for Sockets
+            roomID: `room_${Math.random().toString(36).substring(2, 9)}`
         });
 
         return res.status(201).json(meeting);
@@ -65,15 +88,25 @@ const getMyMeetings = async (req, res) => {
 // @route   PUT /api/meetings/:id
 const updateMeetingStatus = async (req, res) => {
     try {
-        const meeting = await Meeting.findById(req.params.id);
-        if (!meeting) {
-            return res.status(404).json({ message: 'Meeting not found' });
+        const meetingId = req.params.id;
+
+        if (!meetingId) {
+            return res.status(400).json({ message: 'Meeting ID configuration parameter is required.' });
         }
 
-        meeting.status = req.body.status || meeting.status;
-        const updatedMeeting = await meeting.save();
+        const updatedMeeting = await Meeting.findByIdAndUpdate(
+            meetingId,
+            { status: req.body.status },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedMeeting) {
+            return res.status(404).json({ message: 'Meeting not found in the timeline ledger directory.' });
+        }
+
         return res.json(updatedMeeting);
     } catch (error) {
+        console.error("CRITICAL PIPELINE FAULT - updateMeetingStatus Runtime Exception:", error.message);
         return res.status(500).json({ message: error.message });
     }
 };

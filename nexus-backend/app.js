@@ -5,8 +5,7 @@ const path = require('path');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes'); // New Link Import
 const meetingRoutes = require('./routes/meetingRoutes');
-const documentRoutes = require('./routes/documentRoutes');
-const paymentRoutes = require('./routes/paymentRoutes');
+
 
 const app = express();
 
@@ -21,8 +20,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes); // New Link Injection
 app.use('/api/meetings', meetingRoutes);
-app.use('/api/documents', documentRoutes);
-app.use('/api/payments', paymentRoutes);
+
 
 app.use('/api/test', (req, res) => {
     res.status(200).json({ message: "Nexus Full Backend Suite with User Directory is working perfectly!" });
